@@ -6,8 +6,9 @@ sampling as is typically needed for deep learning.
 Author: @ysbecca
 '''
 
+import os
 import numpy as np
-from openslide import open_slide  
+from openslide import open_slide
 from openslide.deepzoom import DeepZoomGenerator
 from glob import glob
 from xml.dom import minidom
@@ -15,16 +16,19 @@ from shapely.geometry import Polygon, Point
 
 from .store import *
 
+
 def check_label_exists(label, label_map):
     ''' Checking if a label is a valid label. 
     '''
     if label in label_map:
         return True
     else:
-        print("py_wsi error: provided label " + str(label) + " not present in label map.")
+        print("py_wsi error: provided label " +
+              str(label) + " not present in label map.")
         print("Setting label as -1 for UNRECOGNISED LABEL.")
         print(label_map)
         return False
+
 
 def generate_label(regions, region_labels, point, label_map):
     ''' Generates a label given an array of regions.
@@ -45,6 +49,7 @@ def generate_label(regions, region_labels, point, label_map):
         return label_map['Normal']
     else:
         return -1
+
 
 def get_regions(path):
     ''' Parses the xml at the given path, assuming annotation format importable by ImageScope. '''
@@ -71,8 +76,10 @@ def get_regions(path):
         regions.append(coords)
     return regions, region_labels
 
+
 def patch_to_tile_size(patch_size, overlap):
     return patch_size - overlap*2
+
 
 def sample_and_store_patches(file_name,
                              file_dir,
@@ -104,7 +111,7 @@ def sample_and_store_patches(file_name,
     '''
 
     tile_size = patch_to_tile_size(patch_size, pixel_overlap)
-    slide = open_slide(file_dir + file_name)
+    slide = open_slide(os.path.join(file_dir, file_name))
     tiles = DeepZoomGenerator(slide,
                               tile_size=tile_size,
                               overlap=pixel_overlap,
@@ -115,7 +122,8 @@ def sample_and_store_patches(file_name,
         regions, region_labels = get_regions(xml_dir + file_name[:-4] + ".xml")
 
     if level >= tiles.level_count:
-        print("[py-wsi error]: requested level does not exist. Number of slide levels: " + str(tiles.level_count))
+        print("[py-wsi error]: requested level does not exist. Number of slide levels: " +
+              str(tiles.level_count))
         return 0
     x_tiles, y_tiles = tiles.level_tiles[level]
 
@@ -134,8 +142,10 @@ def sample_and_store_patches(file_name,
 
                 # Calculate the patch label based on centre point.
                 if xml_dir:
-                    converted_coords = tiles.get_tile_coordinates(level, (x, y))[0]
-                    labels.append(generate_label(regions, region_labels, converted_coords, label_map))
+                    converted_coords = tiles.get_tile_coordinates(level, (x, y))[
+                        0]
+                    labels.append(generate_label(
+                        regions, region_labels, converted_coords, label_map))
             x += 1
 
         # To save memory, we will save data into the dbs every rows_per_txn rows. i.e., each transaction will commit
@@ -143,7 +153,8 @@ def sample_and_store_patches(file_name,
         # this convention due to efficiency.
         if (y % rows_per_txn == 0 and y != 0) or y == y_tiles-1:
             if storage_option == 'disk':
-                save_to_disk(db_location, patches, coords, file_name[:-4], labels)
+                save_to_disk(db_location, patches, coords,
+                             file_name[:-4], labels)
             elif storage_option == 'lmdb':
                 # LMDB by default.
                 save_in_lmdb(env, patches, coords, file_name[:-4], labels)
@@ -151,17 +162,19 @@ def sample_and_store_patches(file_name,
                 del patches
                 del coords
                 del labels
-                patches, coords, labels = [], [], [] # Reset right away.
+                patches, coords, labels = [], [], []  # Reset right away.
 
         y += 1
         x = 0
 
     # Write to HDF5 files all in one go.
     if storage_option == 'hdf5':
-        save_to_hdf5(db_location, patches, coords, file_name[:-4], labels)
+        save_to_hdf5(db_location, patches, coords,
+                     file_name[:-4] + f'_{level}', labels)
 
     # Need to save tile dimensions if LMDB for retrieving patches by key.
     if storage_option == 'lmdb':
-        save_meta_in_lmdb(meta_env, file_name[:-4], [x_tiles, y_tiles])
+        save_meta_in_lmdb(
+            meta_env, file_name[:-4] + f'_{level}', [x_tiles, y_tiles])
 
     return count

@@ -9,6 +9,7 @@ Author: @ysbecca
 import itertools
 import math
 import sys
+import os
 
 import numpy as np
 
@@ -23,16 +24,17 @@ from .store import *
 from .helpers import *
 from .config import *
 
+
 class Turtle(object):
 
     def __init__(self,
-    			 file_dir,
-    			 db_location,
-    			 db_name="",
-    			 storage_type='lmdb',
-    			 xml_dir=False,
-    			 label_map={},
-    			 ):
+                 file_dir,
+                 db_location,
+                 db_name="",
+                 storage_type='lmdb',
+                 xml_dir=False,
+                 label_map={},
+                 ):
         """ The py-wsi manager class for manipulating svs and patches. 
             - storage_type  expecting 'lmdb', 'hdf5', disk'
             - file_dir      location of all the image files
@@ -42,7 +44,8 @@ class Turtle(object):
             - label_map     dictionary of labels and their integer labels expected in annotation files
         """
         if storage_type not in STORAGE_TYPES:
-            print("[py-wsi error]: storage type not recognised; expecting one of", STORAGE_TYPES)
+            print(
+                "[py-wsi error]: storage type not recognised; expecting one of", STORAGE_TYPES)
             return
 
         self.storage_type = storage_type
@@ -102,7 +105,7 @@ class Turtle(object):
             return 0, [], []
 
         # Open image and return variables.
-        slide = open_slide(self.file_dir + file_name)
+        slide = open_slide(os.path.join(self.file_dir, file_name))
         tiles = DeepZoomGenerator(slide, tile_size=tile_dim, overlap=overlap)
 
         return tiles.level_count, tiles.level_tiles, tiles.level_dimensions
@@ -126,9 +129,10 @@ class Turtle(object):
 
         # Check that tile level requested is valid.
         if level > tiles.level_count - 1:
-            print("[py-wsi error]: requested level does not exist. Number of slide levels:", tiles.level_count)
+            print(
+                "[py-wsi error]: requested level does not exist. Number of slide levels:", tiles.level_count)
             return None
-    
+
         # Sample from centre of image to maximise likelihood of returning tissue.
         x, y = tiles.level_tiles[level]
         new_tile = tiles.get_tile(level, (int(x / 2), int(y / 2)))
@@ -148,21 +152,24 @@ class Turtle(object):
         else:
             # Check for invalid inputs.
             if len(select) != self.num_files:
-                print("[py-wsi error]: select array provided but does not match the number of files,", self.num_files)
+                print(
+                    "[py-wsi error]: select array provided but does not match the number of files,", self.num_files)
                 return []
 
         # Fetch all the patches from each selected image in dataset.
         all_patches, all_coords, all_cls, all_labels = [], [], [], []
         for i in range(self.num_files):
             if select[i]:
-                patches, coords, classes, labels = self.get_patches_from_file(self.files[i])
+                patches, coords, classes, labels = self.get_patches_from_file(
+                    self.files[i])
                 all_patches.append(patches)
                 all_coords.append(coords)
                 all_cls.append(classes)
                 all_labels.append(labels)
 
         # Flatten the data into lists.
-        all_patches = list(itertools.chain.from_iterable(x for x in all_patches))
+        all_patches = list(
+            itertools.chain.from_iterable(x for x in all_patches))
         all_coords = list(itertools.chain.from_iterable(x for x in all_coords))
         all_cls = list(itertools.chain.from_iterable(x for x in all_cls))
         all_labels = list(itertools.chain.from_iterable(x for x in all_labels))
@@ -208,7 +215,7 @@ class Turtle(object):
             num_xml_files = len(self.get_xml_files())
             if self.num_files != num_xml_files:
                 print("[py-wsi error]: requested to read XML annotations but number of XML files", num_xml_files,
-                    "does not match number of .svs files", self.num_files)
+                      "does not match number of .svs files", self.num_files)
                 return
         if overlap < 0:
             print("[py-wsi error]: negative overlap not allowed.")
@@ -219,12 +226,15 @@ class Turtle(object):
             xml_dir = self.xml_dir
 
         if self.storage_type == 'hdf5':
-            self.__sample_store_hdf5(patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn)
+            self.__sample_store_hdf5(
+                patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn)
         elif self.storage_type == 'disk':
-            self.__sample_store_disk(patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn)
+            self.__sample_store_disk(
+                patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn)
         else:
             # LMDB by default.
-            self.__sample_store_lmdb(patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn)
+            self.__sample_store_lmdb(
+                patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn)
 
         end_timer(start_time)
 
@@ -261,8 +271,8 @@ class Turtle(object):
     def __get_files_from_dir(self, file_dir, file_type='.svs'):
         """ Returns the names of all the SVS image files in the provided directory. 
         """
-        return np.array([file for file in listdir(file_dir) 
-            if isfile(join(file_dir, file)) and file_type in file])
+        return np.array([file for file in listdir(file_dir)
+                         if isfile(join(file_dir, file)) and file_type in file])
 
     def __get_db_meta_name(self, db_name):
         return db_name + "_meta"
@@ -286,9 +296,9 @@ class Turtle(object):
         """ Loads the numpy patches from HDF5 files.
         """
         patches, coords, classes, labels = [], [], [], []
-        
+
         # Now load the images from H5 file.
-        file = h5py.File(self.db_location + file_name + ".h5",'r+')
+        file = h5py.File(self.db_location + file_name + ".h5", 'r+')
         dataset = file['/' + 't']
         new_patches = np.array(dataset).astype('uint8')
         for patch in new_patches:
@@ -309,10 +319,10 @@ class Turtle(object):
                     labels.append(l)
 
         if verbose:
-            print("[py-wsi] loaded from", file_name, ".h5 file", np.shape(patches))
+            print("[py-wsi] loaded from", file_name,
+                  ".h5 file", np.shape(patches))
 
         return patches, coords, classes, labels
-
 
     def __sample_store_hdf5(self, patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn):
         """ Same parameters as sample_and_store_patches().
@@ -321,24 +331,24 @@ class Turtle(object):
         for file in self.files:
             print(file, end=" ")
             patch_count = sample_and_store_patches(
-                                file,
-                                self.file_dir,
-                                overlap,
-                                patch_size=patch_size,
-                                level=level,
-                                xml_dir=xml_dir,
-                                label_map=self.label_map,
-                                limit_bounds=limit_bounds,
-                                rows_per_txn=rows_per_txn,
-                                db_location=self.db_location,
-                                prefix=self.db_name,
-                                storage_option='hdf5')
+                file,
+                self.file_dir,
+                overlap,
+                patch_size=patch_size,
+                level=level,
+                xml_dir=xml_dir,
+                label_map=self.label_map,
+                limit_bounds=limit_bounds,
+                rows_per_txn=rows_per_txn,
+                db_location=self.db_location,
+                prefix=self.db_name,
+                storage_option='hdf5')
 
             # Don't stop if one image fails.
             if patch_count <= 0:
-                print("[py-wsi error]: no patches sampled from ", file, ". Continuing.")
+                print("[py-wsi error]: no patches sampled from ",
+                      file, ". Continuing.")
             total_count += patch_count
-
 
     ###########################################################################
     #                Disk-specific helper functions                           #
@@ -351,12 +361,13 @@ class Turtle(object):
         """
         # Get all files matching the WSI file name and correct file type.
         patch_files = np.array(
-            [file for file in listdir(self.db_location) 
-            if isfile(join(self.db_location, file)) and '.png' in file and wsi_name in file])
+            [file for file in listdir(self.db_location)
+             if isfile(join(self.db_location, file)) and '.png' in file and wsi_name in file])
 
         patches, coords, classes, labels = [], [], [], []
         for f in patch_files:
-            patches.append(np.array(Image.open(self.db_location + f), dtype=np.uint8))
+            patches.append(
+                np.array(Image.open(self.db_location + f), dtype=np.uint8))
 
             f_ = f.split('_')
             coords.append([int(f_[1]), int(f_[2])])
@@ -376,7 +387,6 @@ class Turtle(object):
 
         return patches, coords, classes, labels
 
-
     def __sample_store_disk(self, patch_size, level, overlap, xml_dir, limit_bounds, rows_per_txn):
         """ Same parameters as sample_and_store_patches().
         """
@@ -384,22 +394,23 @@ class Turtle(object):
         for file in self.files:
             print(file, end=" ")
             patch_count = sample_and_store_patches(
-                                file,
-                                self.file_dir,
-                                overlap,
-                                patch_size=patch_size,
-                                level=level,
-                                xml_dir=xml_dir,
-                                label_map=self.label_map,
-                                limit_bounds=limit_bounds,
-                                rows_per_txn=rows_per_txn,
-                                db_location=self.db_location,
-                                prefix=self.db_name,
-                                storage_option='disk')
+                file,
+                self.file_dir,
+                overlap,
+                patch_size=patch_size,
+                level=level,
+                xml_dir=xml_dir,
+                label_map=self.label_map,
+                limit_bounds=limit_bounds,
+                rows_per_txn=rows_per_txn,
+                db_location=self.db_location,
+                prefix=self.db_name,
+                storage_option='disk')
 
             # Don't stop if one image fails.
             if patch_count <= 0:
-                print("[py-wsi error]: no patches sampled from ", file, ". Continuing.")
+                print("[py-wsi error]: no patches sampled from ",
+                      file, ". Continuing.")
             total_count += patch_count
 
         print("")
@@ -408,7 +419,6 @@ class Turtle(object):
         print("Patches saved to:                         ", self.db_location)
         print("Patches saved with prefix:                ", self.db_name)
         print("")
-
 
     ###########################################################################
     #                LMDB-specific helper functions                           #
@@ -450,9 +460,10 @@ class Turtle(object):
         total_meta_bytes = 0
 
         for file in self.files:
-            slide = open_slide(self.file_dir + file)
+            slide = open_slide(os.path.join(self.file_dir, file))
             tile_size = patch_to_tile_size(patch_size, overlap)
-            tiles = DeepZoomGenerator(slide, tile_size=tile_size, overlap=overlap, limit_bounds=limit_bounds)
+            tiles = DeepZoomGenerator(
+                slide, tile_size=tile_size, overlap=overlap, limit_bounds=limit_bounds)
 
             # Count total number of tiles.
             x_tiles, y_tiles = tiles.level_tiles[level]
@@ -460,7 +471,8 @@ class Turtle(object):
 
             # Calculate total patch bytes, assuming colour (3 channels), bytes per int plus buffer.
             # If image is saved in float or double, this may be too conservative.
-            total_bytes += (file_tiles * patch_size * patch_size * 3 * (sys.getsizeof(int()) + 4))
+            total_bytes += (file_tiles * patch_size *
+                            patch_size * 3 * (sys.getsizeof(int()) + 4))
             total_meta_bytes += file_tiles * 256
 
         return total_bytes, total_meta_bytes
@@ -471,9 +483,10 @@ class Turtle(object):
         """
 
         # First iteration to calculate exactly the size of the DB.
-        # To deal with very large databases, it is suggested to save k databases, one for each 
+        # To deal with very large databases, it is suggested to save k databases, one for each
         # k-fold cross validation set.
-        map_size, meta_map_size = self.__calculate_map_size(patch_size, level, overlap, limit_bounds)
+        map_size, meta_map_size = self.__calculate_map_size(
+            patch_size, level, overlap, limit_bounds)
         print("Pre-calculated map sizes:")
         print(" - patch db:    ", map_size, "bytes")
         print(" - meta db:     ", meta_map_size, "bytes")
@@ -487,21 +500,22 @@ class Turtle(object):
             print(file, end=" ")
             # Open, sample, and store in multiple transactions per file.
             patch_count = sample_and_store_patches(
-                                file,
-                                self.file_dir,
-                                overlap,
-                                env=env,
-                                meta_env=meta_env,
-                                patch_size=patch_size,
-                                level=level,
-                                xml_dir=xml_dir,
-                                label_map=self.label_map,
-                                limit_bounds=limit_bounds,
-                                rows_per_txn=rows_per_txn)
+                file,
+                self.file_dir,
+                overlap,
+                env=env,
+                meta_env=meta_env,
+                patch_size=patch_size,
+                level=level,
+                xml_dir=xml_dir,
+                label_map=self.label_map,
+                limit_bounds=limit_bounds,
+                rows_per_txn=rows_per_txn)
 
             # Don't stop if one image fails.
             if patch_count <= 0:
-                print("[py-wsi error]: no patches sampled from ", file, ". Continuing.")
+                print("[py-wsi error]: no patches sampled from ",
+                      file, ". Continuing.")
 
         print("")
         print("====== LMDB " + self.db_name + " Stats ======")
