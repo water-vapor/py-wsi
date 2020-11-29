@@ -9,6 +9,7 @@ Author: @ysbecca
 import csv
 import time
 import h5py
+import os
 from datetime import timedelta
 
 from PIL import Image
@@ -57,7 +58,7 @@ def get_meta_from_lmdb(meta_env, file):
     return dims
 
 def new_lmdb(location, name, map_size_bytes):
-    return lmdb.open(location + name, map_size=map_size_bytes)
+    return lmdb.open(os.path.join(location, name), map_size=map_size_bytes)
 
 def print_lmdb_keys(env):
     with env.begin() as txn:
@@ -67,7 +68,7 @@ def print_lmdb_keys(env):
 
 def read_lmdb(location, name):
     ''' Read-only allows for multiple consecutive reads. '''
-    return lmdb.open(location + name, readonly=True)
+    return lmdb.open(os.path.join(location, name), readonly=True)
 
 
 ###########################################################################
@@ -84,13 +85,12 @@ def save_to_hdf5(db_location, patches, coords, file_name, labels):
         - file_name         original source WSI name
         - labels            patch labels (opt)
     """
-
     # Save patches into hdf5 file.
-    file    = h5py.File(db_location + file_name + '.h5','w')
+    file    = h5py.File(os.path.join(db_location, file_name + '.h5'),'w')
     dataset = file.create_dataset('t', np.shape(patches), h5py.h5t.STD_I32BE, data=patches)
 
     # Save all label meta into a csv file.
-    with open(db_location + file_name + '.csv', 'w', newline='') as csvfile:
+    with open(os.path.join(db_location, file_name + '.csv'), 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=' ',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for i in range(len(labels)):
@@ -119,4 +119,4 @@ def save_to_disk(db_location, patches, coords, file_name, labels):
             patch_fname += str(labels[i])
 
         # Save the image.
-        Image.fromarray(patch).save(db_location + patch_fname + ".png")
+        Image.fromarray(patch).save(os.path.join(db_location, patch_fname + ".png"))

@@ -119,7 +119,7 @@ def sample_and_store_patches(file_name,
 
     if xml_dir:
         # Expect filename of XML annotations to match SVS file name
-        regions, region_labels = get_regions(xml_dir + file_name[:-4] + ".xml")
+        regions, region_labels = get_regions(os.path.join(xml_dir, file_name[:-4] + ".xml"))
 
     if level >= tiles.level_count:
         print("[py-wsi error]: requested level does not exist. Number of slide levels: " +
